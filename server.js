@@ -9,6 +9,31 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ====== ENV CHECK ======
+console.log("🔍 Checking environment variables...");
+const requiredVars = [
+    "NEON_CONNECTION_STRING or DATABASE_URL",
+    "SENDGRID_API_KEY",
+    "FROM_EMAIL"
+];
+let missingVars = [];
+
+// DB connection string
+const connectionString = process.env.NEON_CONNECTION_STRING || process.env.DATABASE_URL;
+if (!connectionString) missingVars.push("NEON_CONNECTION_STRING or DATABASE_URL");
+
+// SendGrid API key
+if (!process.env.SENDGRID_API_KEY) missingVars.push("SENDGRID_API_KEY");
+
+// SendGrid From email
+if (!process.env.FROM_EMAIL) missingVars.push("FROM_EMAIL");
+
+if (missingVars.length > 0) {
+    console.warn("⚠ Missing environment variables:", missingVars.join(", "));
+} else {
+    console.log("✅ All required environment variables are set.");
+}
+
 // ====== MIDDLEWARE ======
 app.use(cors({
     origin: [
@@ -21,14 +46,13 @@ app.use(cors({
 app.use(bodyParser.json());
 
 // ====== CONFIGURE SENDGRID ======
-if (!process.env.SENDGRID_API_KEY) {
-    console.warn("⚠ SENDGRID_API_KEY not set in .env");
+if (process.env.SENDGRID_API_KEY) {
+    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+} else {
+    console.warn("⚠ SENDGRID_API_KEY not set — emails will not be sent.");
 }
-sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
 // ====== CONFIGURE NEON DB ======
-// Support both NEON_CONNECTION_STRING and DATABASE_URL
-const connectionString = process.env.NEON_CONNECTION_STRING || process.env.DATABASE_URL;
 if (!connectionString) {
     console.error("❌ No database connection string found! Please set NEON_CONNECTION_STRING or DATABASE_URL in .env");
     process.exit(1);
@@ -48,9 +72,7 @@ app.get('/api/status', async (req, res) => {
     }
 });
 
-// ====== ROUTES ======
-
-// Create Profile (Sign Up)
+// ====== SIGNUP ROUTE ======
 app.post('/api/profile', async (req, res) => {
     const { name, email, joined, profilePic, password } = req.body;
 
@@ -85,7 +107,7 @@ app.post('/api/profile', async (req, res) => {
     }
 });
 
-// Login
+// ====== LOGIN ROUTE ======
 app.post('/api/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -105,7 +127,7 @@ app.post('/api/login', async (req, res) => {
 
         const user = result.rows[0];
 
-        if (user.password !== password) { // ⚠ Plaintext password for now
+        if (user.password !== password) {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
@@ -119,11 +141,5 @@ app.post('/api/login', async (req, res) => {
 
 // ====== START SERVER ======
 app.listen(PORT, () => {
-    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
-
-
-
-
-
-
