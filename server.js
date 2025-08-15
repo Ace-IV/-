@@ -11,21 +11,11 @@ const PORT = process.env.PORT || 3000;
 
 // ====== ENV CHECK ======
 console.log("🔍 Checking environment variables...");
-const requiredVars = [
-    "NEON_CONNECTION_STRING or DATABASE_URL",
-    "SENDGRID_API_KEY",
-    "FROM_EMAIL"
-];
+const connectionString = process.env.NEON_CONNECTION_STRING || process.env.DATABASE_URL;
 let missingVars = [];
 
-// DB connection string
-const connectionString = process.env.NEON_CONNECTION_STRING || process.env.DATABASE_URL;
 if (!connectionString) missingVars.push("NEON_CONNECTION_STRING or DATABASE_URL");
-
-// SendGrid API key
 if (!process.env.SENDGRID_API_KEY) missingVars.push("SENDGRID_API_KEY");
-
-// SendGrid From email
 if (!process.env.FROM_EMAIL) missingVars.push("FROM_EMAIL");
 
 if (missingVars.length > 0) {
@@ -61,6 +51,26 @@ const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false }
 });
+
+// ====== AUTO CREATE TABLE ======
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                joined TEXT,
+                profile_pic TEXT,
+                password TEXT NOT NULL
+            );
+        `);
+        console.log("✅ Verified 'users' table exists.");
+    } catch (err) {
+        console.error("❌ Error creating/verifying 'users' table:", err.message);
+        process.exit(1);
+    }
+})();
 
 // ====== HEALTH CHECK ROUTE ======
 app.get('/api/status', async (req, res) => {
