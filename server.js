@@ -27,12 +27,25 @@ if (!process.env.SENDGRID_API_KEY) {
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || "");
 
 // ====== CONFIGURE NEON DB ======
-if (!process.env.NEON_CONNECTION_STRING) {
-    console.warn("⚠ NEON_CONNECTION_STRING not set in .env");
+// Support both NEON_CONNECTION_STRING and DATABASE_URL
+const connectionString = process.env.NEON_CONNECTION_STRING || process.env.DATABASE_URL;
+if (!connectionString) {
+    console.error("❌ No database connection string found! Please set NEON_CONNECTION_STRING or DATABASE_URL in .env");
+    process.exit(1);
 }
 const pool = new Pool({
-    connectionString: process.env.NEON_CONNECTION_STRING,
+    connectionString,
     ssl: { rejectUnauthorized: false }
+});
+
+// ====== HEALTH CHECK ROUTE ======
+app.get('/api/status', async (req, res) => {
+    try {
+        await pool.query('SELECT NOW()');
+        res.json({ status: 'ok', message: 'Backend and database connected' });
+    } catch (error) {
+        res.status(500).json({ status: 'error', message: error.message });
+    }
 });
 
 // ====== ROUTES ======
@@ -41,20 +54,17 @@ const pool = new Pool({
 app.post('/api/profile', async (req, res) => {
     const { name, email, joined, profilePic, password } = req.body;
 
-    // Validate request body
     if (!name || !email || !password) {
         return res.status(400).json({ error: 'Name, email, and password are required' });
     }
 
     try {
-        // Save to Neon DB
         await pool.query(
             `INSERT INTO users (name, email, joined, profile_pic, password)
              VALUES ($1, $2, $3, $4, $5)`,
             [name, email, joined || new Date().toLocaleDateString(), profilePic, password]
         );
 
-        // Send Email via SendGrid
         if (process.env.SENDGRID_API_KEY && process.env.FROM_EMAIL) {
             const msg = {
                 to: email,
@@ -99,7 +109,7 @@ app.post('/api/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid password' });
         }
 
-        delete user.password; // Remove password before sending back
+        delete user.password;
         res.json(user);
     } catch (error) {
         console.error("❌ Error in /api/login:", error.message);
@@ -111,6 +121,8 @@ app.post('/api/login', async (req, res) => {
 app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
 });
+
+
 
 
 
