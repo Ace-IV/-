@@ -166,7 +166,22 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+// ====== LOGIN HISTORY ROUTE ======
+app.get('/api/logins', async (req, res) => {
+    try {
+        const result = await pool.query(
+            'SELECT * FROM logins ORDER BY login_time DESC'
+        );
+        res.json(result.rows);
+    } catch (error) {
+        console.error("❌ Error in /api/logins:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 // ====== START SERVER ======
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
+
