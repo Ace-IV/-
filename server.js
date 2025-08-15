@@ -52,9 +52,10 @@ const pool = new Pool({
     ssl: { rejectUnauthorized: false }
 });
 
-// ====== AUTO CREATE TABLE ======
+// ====== AUTO CREATE TABLES ======
 (async () => {
     try {
+        // Users table
         await pool.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -65,9 +66,19 @@ const pool = new Pool({
                 password TEXT NOT NULL
             );
         `);
-        console.log("✅ Verified 'users' table exists.");
+
+        // Logins table
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS logins (
+                id SERIAL PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        console.log("✅ Verified 'users' and 'logins' tables exist.");
     } catch (err) {
-        console.error("❌ Error creating/verifying 'users' table:", err.message);
+        console.error("❌ Error creating/verifying tables:", err.message);
         process.exit(1);
     }
 })();
@@ -140,6 +151,12 @@ app.post('/api/login', async (req, res) => {
         if (user.password !== password) {
             return res.status(401).json({ error: 'Invalid password' });
         }
+
+        // Record login in logins table
+        await pool.query(
+            'INSERT INTO logins (user_email) VALUES ($1)',
+            [email]
+        );
 
         delete user.password;
         res.json(user);
