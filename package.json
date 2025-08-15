@@ -1,15 +1,14 @@
 {
-  "name": "new-webpage",
+  "name": "crossroads-backend",
   "version": "1.0.0",
-  "main": "script.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node server.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Backend for Crossroads",
   "dependencies": {
     "@sendgrid/mail": "^8.1.5",
     "body-parser": "^2.2.0",
